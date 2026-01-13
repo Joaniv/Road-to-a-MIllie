@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road to a Millie | Smart Terminal</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        millie: {
+                            bg: '#050b14',
+                            card: '#0f172a',
+                            neonGreen: '#00ff9d',
+                            neonRed: '#ff0055',
+                            neonBlue: '#00f2ff',
+                            neonAmber: '#fbbf24'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #050b14;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus {
+            outline: none;
+            border-color: #00f2ff;
+            box-shadow: 0 0 10px rgba(0, 242, 255, 0.1);
+        }
+
+        .metric-card {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0, 242, 255, 0.2);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .paste-zone {
+            border: 2px dashed rgba(0, 242, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .paste-zone:focus-within {
+            border-color: #00f2ff;
+            background: rgba(0, 242, 255, 0.05);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050b14; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4 relative">
+
+    <!-- Background Decoration -->
+    <div class="fixed inset-0 z-0 pointer-events-none opacity-20" 
+         style="background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, transparent 50%);">
+    </div>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-6xl z-10 relative">
+        
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 mb-2">
+                ROAD TO A MILLIE
+            </h1>
+            <p class="text-slate-500 font-mono text-xs tracking-[0.3em] uppercase">
+                Smart Valuation Terminal
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- LEFT COLUMN: Smart Input -->
+            <div class="lg:col-span-5">
+                <div class="glass-panel rounded-2xl p-6 border border-slate-700/50 relative overflow-hidden">
+                    
+                    <!-- Mode Toggle -->
+                    <div class="flex border-b border-slate-700 pb-4 mb-4">
+                        <button onclick="setMode('smart')" id="btnSmart" class="flex-1 text-sm font-bold text-cyan-400 border-b-2 border-cyan-400 pb-2">🚀 SMART PASTE</button>
+                        <button onclick="setMode('manual')" id="btnManual" class="flex-1 text-sm font-bold text-slate-500 pb-2 hover:text-white transition-colors">✍️ MANUAL</button>
+                    </div>
+
+                    <!-- SMART PASTE SECTION -->
+                    <div id="smartSection">
+                        <div class="mb-4">
+                            <label class="block text-xs text-slate-400 mb-1 uppercase">Step 1: Enter Ticker</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="smartTicker" class="bg-slate-800 border border-slate-700 rounded p-2 text-white w-24 text-center font-bold uppercase" placeholder="AAPL">
+                                <button onclick="openDataSource()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded flex items-center justify-center gap-2 transition-colors">
+                                    <span>Open Yahoo Stats</span>
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-xs text-slate-400 mb-1 uppercase">Step 2: Paste Data Here (Ctrl+A, Ctrl+C, Ctrl+V)</label>
+                            <textarea id="pasteArea" class="paste-zone w-full h-32 bg-slate-900/50 rounded p-2 text-[10px] text-slate-300 font-mono resize-none focus:outline-none" placeholder="Go to the opened page, Select All (Ctrl+A), Copy (Ctrl+C), and Paste here (Ctrl+V)..."></textarea>
+                        </div>
+
+                        <button onclick="parseAndFill()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded mb-4 transition-colors flex items-center justify-center gap-2">
+                            <span>EXTRACT DATA</span>
+                            <span id="extractStatus" class="hidden text-xs bg-black/20 px-2 py-0.5 rounded">Reading...</span>
+                        </button>
+                    </div>
+
+                    <!-- FORM (Used by both modes) -->
+                    <form id="calcForm" onsubmit="event.preventDefault(); runAnalysis();" class="space-y-3 mt-6 border-t border-slate-700 pt-4">
+                        
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-xs font-bold text-white uppercase">Valuation Inputs</span>
+                            <span id="dataQualityBadge" class="text-[10px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded">Waiting for data</span>
+                        </div>
+
+                        <!-- Core -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="input-group">
+                                <label>Price ($)</label>
+                                <input type="number" step="0.01" id="price" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Shares (B)</label>
+                                <input type="number" step="0.001" id="shares" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Raw Beta</label>
+                                <input type="number" step="0.01" id="beta" placeholder="1.0">
+                            </div>
+                        </div>
+
+                        <!-- Financials -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="input-group">
+                                <label>Net Income (TTM)</label>
+                                <input type="number" step="0.01" id="ni_ttm">
+                            </div>
+                            <div class="input-group">
+                                <label>FCF (TTM)</label>
+                                <input type="number" step="0.01" id="fcf_ttm" required>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="input-group">
+                                <label>Total Cash</label>
+                                <input type="number" step="0.01" id="cash">
+                            </div>
+                            <div class="input-group">
+                                <label>Total Debt</label>
+                                <input type="number" step="0.01" id="debt">
+                            </div>
+                        </div>
+
+                        <!-- Growth & Risk Assumptions -->
+                        <div class="p-2 bg-indigo-900/20 rounded border border-indigo-500/30">
+                            <label class="block text-[10px] text-indigo-300 uppercase mb-2 text-center font-bold">Growth & Risk Assumptions</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="input-group">
+                                    <label>Growth Rate (%)</label>
+                                    <input type="number" step="0.1" id="growth_rate" value="10.0">
+                                </div>
+                                <div class="input-group">
+                                    <label>10Y Yield (RFR %)</label>
+                                    <input type="number" step="0.01" id="rfr" value="4.2">
+                                </div>
+                            </div>
+                            <div class="input-group mt-2">
+                                <label>Sector / Method</label>
+                                <select id="sector">
+                                    <option value="tech">Tech (DCF 15x Exit)</option>
+                                    <option value="high_tech">High Growth Tech (DCF 30x Exit)</option>
+                                    <option value="industrial">Industrial (DCF 7x Exit)</option>
+                                    <option value="bank">Bank/Insurance (DDM)</option>
+                                    <option value="reit">REIT (Price/FFO)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-cyan-500/20 transition-all mt-4">
+                            CALCULATE VALUE
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Results -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <!-- Placeholder -->
+                <div id="placeholderState" class="h-full flex flex-col items-center justify-center glass-panel rounded-2xl p-10 text-center opacity-50 min-h-[500px]">
+                    <div class="text-6xl mb-4">🔮</div>
+                    <h3 class="text-xl font-bold text-white mb-2">The Oracle is Waiting</h3>
+                    <p class="text-sm text-slate-400">Use "Smart Paste" to grab data from the web,<br>or enter numbers manually.</p>
+                </div>
+
+                <!-- Results Container -->
+                <div id="resultsContainer" class="hidden space-y-6">
+                    
+                    <!-- 1. Executive Verdict -->
+                    <div class="glass-panel rounded-2xl p-8 border-l-4 border-slate-500" id="verdictPanel">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h2 class="text-4xl font-bold text-white mb-1" id="resTicker">TICKER</h2>
+                                <p class="text-slate-400 text-sm" id="resName">Valuation Report</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-3xl font-bold mb-1" id="resVerdict">--</div>
+                                <div class="text-xs font-mono bg-slate-800 px-2 py-1 rounded inline-block" id="resMargin">MOS: --%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-700/50">
+                            <div>
+                                <p class="text-xs text-slate-500 uppercase">Current Price</p>
+                                <p class="text-xl font-bold text-white" id="resPrice">$0.00</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500 uppercase">Intrinsic Value</p>
+                                <p class="text-xl font-bold text-cyan-400" id="resIntrinsic">$0.00</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500 uppercase">WACC (Adj)</p>
+                                <p class="text-xl font-bold text-white" id="resWacc">0.0%</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-500 uppercase">Market Cap</p>
+                                <p class="text-sm font-bold text-white mt-1" id="resMktCap">$0B</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Metrics Breakdown -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Market Expectations (Reverse DCF) -->
+                        <div class="glass-panel rounded-2xl p-6">
+                            <h3 class="text-amber-400 font-bold uppercase text-xs tracking-widest mb-4">Reverse DCF (Market Implied)</h3>
+                            <div class="bg-slate-900/50 p-4 rounded-lg border border-slate-800 flex flex-col justify-center h-[120px]">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-slate-400 text-xs">Priced-in Growth</span>
+                                    <span class="text-2xl font-bold text-white" id="impliedGrowth">0.0%</span>
+                                </div>
+                                <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-2 relative">
+                                    <!-- A marker for the implied growth -->
+                                    <div id="impliedMarker" class="absolute top-0 bottom-0 w-1 bg-white" style="left: 0%"></div>
+                                    <!-- A colored background for context -->
+                                    <div class="w-full h-full bg-gradient-to-r from-emerald-900 via-slate-800 to-rose-900"></div>
+                                </div>
+                                <p class="text-[10px] text-slate-500 text-right" id="impliedSentiment">Market Expects: Reality</p>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-2 italic">
+                                *This is the annual growth rate required to justify the current stock price based on your WACC input.
+                            </p>
+                        </div>
+
+                        <!-- Financial Health -->
+                        <div class="glass-panel rounded-2xl p-6">
+                            <h3 class="text-indigo-400 font-bold uppercase text-xs tracking-widest mb-4">Financial Health</h3>
+                            <div class="space-y-4">
+                                <!-- Cash vs Debt -->
+                                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                                    <div class="flex justify-between text-xs mb-2">
+                                        <span class="text-slate-400">Balance Sheet</span>
+                                        <span id="debtStatus">Analyzing...</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 h-4 w-full bg-slate-800 rounded-full overflow-hidden">
+                                        <div id="barCash" class="bg-emerald-500 h-full" style="width: 50%"></div>
+                                        <div id="barDebt" class="bg-rose-500 h-full" style="width: 50%"></div>
+                                    </div>
+                                    <div class="flex justify-between text-[10px] mt-1 text-slate-500 font-mono">
+                                        <span>Cash: <span id="valCash" class="text-emerald-400">$0B</span></span>
+                                        <span>Debt: <span id="valDebt" class="text-rose-400">$0B</span></span>
+                                    </div>
+                                </div>
+
+                                <!-- Profitability -->
+                                <div class="flex justify-between items-center p-2 border-b border-slate-800">
+                                    <span class="text-xs text-slate-400">Net Income (TTM)</span>
+                                    <span class="text-white font-bold" id="valNi">$0B</span>
+                                </div>
+                                <div class="flex justify-between items-center p-2 border-b border-slate-800">
+                                    <span class="text-xs text-slate-400">Free Cash Flow (TTM)</span>
+                                    <span class="text-emerald-400 font-bold" id="valFcf">$0B</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Valuation Logic Debug -->
+                        <div class="glass-panel rounded-2xl p-6 md:col-span-2">
+                            <h3 class="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4">Valuation Logic</h3>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+                                <div>
+                                    <span class="block text-slate-500">Risk Free Rate</span>
+                                    <span class="text-white" id="outRfr">4.2%</span>
+                                </div>
+                                <div>
+                                    <span class="block text-slate-500">Blume Adj Beta</span>
+                                    <span class="text-white" id="outBeta">1.0</span>
+                                </div>
+                                <div>
+                                    <span class="block text-slate-500">Calculated WACC</span>
+                                    <span class="text-cyan-400 font-bold" id="outWaccCalc">9.2%</span>
+                                </div>
+                                <div>
+                                    <span class="block text-slate-500">Implied Share Price</span>
+                                    <span class="text-emerald-400 font-bold" id="outFair">$0.00</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-2 border-t border-slate-700 flex justify-between text-xs text-slate-500">
+                                <span id="outEV">EV: $0B</span>
+                                <span id="outEqV">EqV: $0B</span>
+                            </div>
+                        </div>
+
+                    </div>
+                    
+                    <div class="glass-panel p-4 rounded-xl text-center text-xs text-slate-500 italic">
+                        "The market is a voting machine in the short run, but a weighing machine in the long run."
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- 1. UI Modes ---
+        function setMode(mode) {
+            const smart = document.getElementById('smartSection');
+            const btnSmart = document.getElementById('btnSmart');
+            const btnManual = document.getElementById('btnManual');
+
+            if(mode === 'smart') {
+                smart.classList.remove('hidden');
+                btnSmart.className = "flex-1 text-sm font-bold text-cyan-400 border-b-2 border-cyan-400 pb-2";
+                btnManual.className = "flex-1 text-sm font-bold text-slate-500 pb-2 hover:text-white transition-colors";
+            } else {
+                smart.classList.add('hidden');
+                btnManual.className = "flex-1 text-sm font-bold text-cyan-400 border-b-2 border-cyan-400 pb-2";
+                btnSmart.className = "flex-1 text-sm font-bold text-slate-500 pb-2 hover:text-white transition-colors";
+            }
+        }
+
+        // --- 2. Smart Parser Logic ---
+        function openDataSource() {
+            const ticker = document.getElementById('smartTicker').value;
+            if(!ticker) return alert("Enter a ticker first!");
+            window.open(`https://finance.yahoo.com/quote/${ticker}/key-statistics/`, '_blank');
+        }
+
+        function parseAndFill() {
+            const text = document.getElementById('pasteArea').value;
+            if(!text) return alert("Paste some data first!");
+
+            document.getElementById('extractStatus').classList.remove('hidden');
+
+            // --- Regex Helpers for Yahoo Finance Format ---
+            // Handles "1.23B", "1.23T", "1.23M" and "1,234.56"
+            function extractNumber(label) {
+                // Look for label, followed by some distance, then a number with B/T/M suffix
+                const regex = new RegExp(`${label}.*?([0-9.,]+[BTMk]?)`, 'i');
+                const match = text.match(regex);
+                if(match && match[1]) {
+                    return parseFinancialString(match[1]);
+                }
+                return null;
+            }
+
+            // Specific Regex for Price at the top of Yahoo/Google pages
+            // Pattern: Number followed by +/- Number followed by (% or similar)
+            // Example: 226.80 +1.57 (+0.70%) or 140.00 -0.50 (-0.3%)
+            function extractPrice() {
+                const regex = /([0-9,]+\.[0-9]{2})\s*[+-]?[0-9,]+\.[0-9]{2}\s*\(/;
+                const match = text.match(regex);
+                if (match && match[1]) {
+                    return parseFloat(match[1].replace(/,/g, ''));
+                }
+                // Fallback to "Previous Close" if header regex fails
+                const close = extractNumber("previous close");
+                return close || 0;
+            }
+
+            // Parsing "1.52B" -> 1.52 (We normalize everything to Billions usually, or keep raw)
+            // Let's normalize everything to BILLIONS for the calculator.
+            function parseFinancialString(str) {
+                str = str.toUpperCase().replace(/,/g, '');
+                let val = parseFloat(str);
+                if(str.includes('T')) val *= 1000; // Trillions to Billions
+                else if(str.includes('M')) val /= 1000; // Millions to Billions
+                else if(str.includes('K')) val /= 1000000; 
+                // If it ends in B, it's already billions.
+                // If no suffix? Usually price or ratio.
+                return val;
+            }
+
+            // --- Execution ---
+            try {
+                // 1. Price
+                let price = extractPrice();
+                if(price) document.getElementById('price').value = price;
+
+                // 2. Shares
+                let shares = extractNumber("shares outstanding");
+                if(shares) document.getElementById('shares').value = shares;
+
+                // 3. Beta
+                let beta = extractNumber("beta \\(5y monthly\\)");
+                if(beta) document.getElementById('beta').value = beta;
+
+                // 4. Financials
+                let ni = extractNumber("net income avi to common");
+                if(ni) document.getElementById('ni_ttm').value = ni;
+
+                // FCF is tricky. "Levered Free Cash Flow" is usually there.
+                let fcf = extractNumber("levered free cash flow");
+                if(fcf) document.getElementById('fcf_ttm').value = fcf;
+
+                let cash = extractNumber("total cash \\(mrq\\)");
+                if(cash) document.getElementById('cash').value = cash;
+
+                let debt = extractNumber("total debt \\(mrq\\)");
+                if(debt) document.getElementById('debt').value = debt;
+
+                // Update Badge
+                document.getElementById('dataQualityBadge').innerText = "Data Extracted";
+                document.getElementById('dataQualityBadge').className = "text-[10px] bg-emerald-900 text-emerald-400 px-2 py-0.5 rounded";
+                document.getElementById('extractStatus').innerText = "Done!";
+                
+                // Flash inputs
+                gsap.from("#calcForm input", { borderColor: "#10b981", duration: 0.5, clearProps: "all" });
+
+            } catch (e) {
+                console.error(e);
+                alert("Could not parse data. Ensure you copied the 'Key Statistics' page text.");
+                document.getElementById('extractStatus').classList.add('hidden');
+            }
+        }
+
+        // --- 3. Calculation Logic ---
+        function runAnalysis() {
+            // Inputs
+            const price = parseFloat(document.getElementById('price').value) || 0;
+            const shares = parseFloat(document.getElementById('shares').value) || 0;
+            const rawBeta = parseFloat(document.getElementById('beta').value) || 1.0;
+            
+            const ni = parseFloat(document.getElementById('ni_ttm').value) || 0;
+            const fcf = parseFloat(document.getElementById('fcf_ttm').value) || 0;
+            const cash = parseFloat(document.getElementById('cash').value) || 0;
+            const debt = parseFloat(document.getElementById('debt').value) || 0;
+            
+            const growthRate = parseFloat(document.getElementById('growth_rate').value) / 100;
+            const sector = document.getElementById('sector').value;
+            
+            const rfrInput = parseFloat(document.getElementById('rfr').value) || 4.2;
+            const rfr = rfrInput / 100;
+
+            // Blume's Adjustment
+            // Adjusted Beta = (0.67 * Raw Beta) + (0.33 * 1.0)
+            // This pulls extreme betas towards the market average of 1.0
+            const adjBeta = (0.67 * rawBeta) + (0.33 * 1.0);
+
+            // WACC (Simplified)
+            const wacc = rfr + (adjBeta * 0.055); // 5.5% Equity Risk Premium
+
+            // Method Switch
+            let intrinsicVal = 0;
+            let method = "DCF";
+            let exitMultiple = 15;
+
+            if (sector === 'bank') {
+                // DDM Proxy
+                // Formula: (Net Income / Shares) / (Cost of Equity - Growth)
+                // Note: We use WACC as proxy for Cost of Equity here for simplicity, or we can assume banks are mostly equity funded.
+                let g = Math.min(growthRate, 0.03); // Banks grow slow
+                intrinsicVal = (ni / shares) / (wacc - g);
+                method = "DDM (Income)";
+            } else if (sector === 'reit') {
+                // Price/FFO
+                intrinsicVal = (fcf / shares) * 15; // 15x FFO
+                method = "Price/FFO";
+            } else {
+                // DCF
+                if (sector === 'tech') exitMultiple = 15;
+                if (sector === 'high_tech') exitMultiple = 30;
+                if (sector === 'industrial') exitMultiple = 7;
+                
+                let sumPV = 0;
+                let futureFCF = fcf;
+                
+                // 10 Year Projection
+                for(let i=1; i<=10; i++) {
+                    // Decay growth rate over time to terminal 3%
+                    let g = growthRate - ((growthRate - 0.03) * (i/10));
+                    futureFCF = futureFCF * (1 + g);
+                    sumPV += futureFCF / Math.pow(1 + wacc, i);
+                }
+                
+                let termVal = futureFCF * exitMultiple;
+                let pvTerm = termVal / Math.pow(1 + wacc, 10);
+                
+                let enterpriseValue = sumPV + pvTerm;
+                let equityValue = enterpriseValue + cash - debt;
+                intrinsicVal = equityValue / shares;
+            }
+
+            // Margin of Safety
+            const mos = ((intrinsicVal - price) / price) * 100;
+            
+            // Verdict Logic (The Grey Zone)
+            let verdict = "HOLD";
+            let verdictColorClass = "text-slate-300";
+            let panelBorderClass = "border-slate-500";
+            let mosBgClass = "bg-slate-800 text-slate-300";
+
+            if (mos > 15) {
+                verdict = "BUY";
+                verdictColorClass = "text-emerald-400 neon-text";
+                panelBorderClass = "border-emerald-500";
+                mosBgClass = "bg-emerald-900/50 text-emerald-300";
+            } else if (mos < -10) {
+                verdict = "SELL";
+                verdictColorClass = "text-rose-500 neon-text";
+                panelBorderClass = "border-rose-500";
+                mosBgClass = "bg-rose-900/50 text-rose-300";
+            } else {
+                // Grey Zone (-10% to +15%)
+                verdict = "HOLD"; // or "FAIR"
+                verdictColorClass = "text-slate-200 neon-text"; // Neutral white/grey
+                panelBorderClass = "border-slate-500"; // Grey border
+                mosBgClass = "bg-slate-700 text-slate-300";
+            }
+
+            // Reverse DCF Logic (Implied Growth)
+            // Finds the growth rate needed to justify current price using binary search
+            let impliedG = 0;
+            if (sector !== 'bank' && sector !== 'reit') {
+                let low = -0.50;
+                let high = 1.00;
+                for(let i=0; i<20; i++) { // 20 iterations is enough precision
+                    let mid = (low + high) / 2;
+                    // Run mini DCF
+                    let testVal = 0;
+                    let testFCF = fcf;
+                    let testSumPV = 0;
+                    for(let j=1; j<=10; j++) {
+                        let g = mid - ((mid - 0.03) * (j/10));
+                        testFCF = testFCF * (1 + g);
+                        testSumPV += testFCF / Math.pow(1 + wacc, j);
+                    }
+                    let testTerm = testFCF * exitMultiple;
+                    let testPVTerm = testTerm / Math.pow(1 + wacc, 10);
+                    let testEqV = (testSumPV + testPVTerm + cash - debt) / shares;
+                    
+                    if (testEqV > price) high = mid;
+                    else low = mid;
+                }
+                impliedG = (low + high) / 2;
+            }
+
+            // Render Results
+            document.getElementById('placeholderState').classList.add('hidden');
+            document.getElementById('resultsContainer').classList.remove('hidden');
+
+            // Header
+            const ticker = document.getElementById('smartTicker').value || "STOCK";
+            document.getElementById('resTicker').innerText = ticker.toUpperCase();
+            
+            const vEl = document.getElementById('resVerdict');
+            const pEl = document.getElementById('verdictPanel');
+            const mEl = document.getElementById('resMargin');
+            
+            vEl.innerText = verdict;
+            vEl.className = `text-3xl font-bold mb-1 ${verdictColorClass}`;
+            pEl.className = `glass-panel rounded-2xl p-8 border-l-4 ${panelBorderClass}`;
+            mEl.innerText = `MOS: ${mos.toFixed(1)}%`;
+            mEl.className = `text-xs font-mono px-2 py-1 rounded inline-block ${mosBgClass}`;
+
+            document.getElementById('resPrice').innerText = `$${price.toFixed(2)}`;
+            document.getElementById('resIntrinsic').innerText = `$${intrinsicVal.toFixed(2)}`;
+            document.getElementById('resWacc').innerText = `${(wacc*100).toFixed(1)}%`;
+            document.getElementById('resMktCap').innerText = `$${(price*shares).toFixed(1)}B`;
+
+            // Reverse DCF Render
+            let impliedPct = (impliedG * 100);
+            if (sector === 'bank' || sector === 'reit') impliedPct = 0; // N/A for these models in this simple tool
+            
+            document.getElementById('impliedGrowth').innerText = `${impliedPct.toFixed(1)}%`;
+            
+            // Marker position (0% to 20% range mapped to 0-100 width)
+            let markerPos = ((impliedPct) / 20) * 100;
+            if (markerPos < 0) markerPos = 0;
+            if (markerPos > 100) markerPos = 100;
+            document.getElementById('impliedMarker').style.left = `${markerPos}%`;
+            
+            let sentiment = "Reality";
+            if (impliedPct > 15) sentiment = "High Optimism";
+            else if (impliedPct < 2) sentiment = "Pessimism";
+            document.getElementById('impliedSentiment').innerText = `Market Pricing: ${sentiment}`;
+
+            // Metrics
+            document.getElementById('valNi').innerText = `$${ni}B`;
+            document.getElementById('valFcf').innerText = `$${fcf}B`;
+            document.getElementById('valCash').innerText = `$${cash}B`;
+            document.getElementById('valDebt').innerText = `$${debt}B`;
+            
+            // Debt Bar
+            const totalCap = cash + debt + 0.1; 
+            document.getElementById('barCash').style.width = `${(cash/totalCap)*100}%`;
+            document.getElementById('barDebt').style.width = `${(debt/totalCap)*100}%`;
+            
+            if(debt > cash * 3) {
+                document.getElementById('debtStatus').innerHTML = '<span class="text-rose-400">High Leverage</span>';
+            } else if (cash > debt) {
+                document.getElementById('debtStatus').innerHTML = '<span class="text-emerald-400">Net Cash</span>';
+            } else {
+                document.getElementById('debtStatus').innerHTML = '<span class="text-amber-400">Moderate</span>';
+            }
+
+            // Valuation Debug
+            document.getElementById('outRfr').innerText = `${rfrInput.toFixed(1)}%`;
+            document.getElementById('outBeta').innerText = `${adjBeta.toFixed(2)} (Adj)`;
+            document.getElementById('outWaccCalc').innerText = `${(wacc*100).toFixed(1)}%`;
+            document.getElementById('outFair').innerText = `$${intrinsicVal.toFixed(2)}`;
+            document.getElementById('outEV').innerText = `EV: ~$${(intrinsicVal*shares - cash + debt).toFixed(1)}B`;
+            document.getElementById('outEqV').innerText = `EqV: ~$${(intrinsicVal*shares).toFixed(1)}B`;
+
+            // Animate
+            gsap.from("#resultsContainer > div", { y: 20, opacity: 0, stagger: 0.1 });
+        }
+    </script>
+</body>
+</html>

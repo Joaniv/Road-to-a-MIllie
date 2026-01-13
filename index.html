@@ -152,8 +152,19 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="block text-xs text-slate-400 mb-1 uppercase">Step 2: Paste Data Here (Ctrl+A, Ctrl+C, Ctrl+V)</label>
-                            <textarea id="pasteArea" class="paste-zone w-full h-32 bg-slate-900/50 rounded p-2 text-[10px] text-slate-300 font-mono resize-none focus:outline-none" placeholder="Go to the opened page, Select All (Ctrl+A), Copy (Ctrl+C), and Paste here (Ctrl+V)..."></textarea>
+                            <label class="block text-xs text-slate-400 mb-1 uppercase">Step 2: Paste Data Here (Ctrl+A, Ctrl+C)</label>
+                            
+                            <!-- Language Selector -->
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[10px] text-slate-500 uppercase">Source Language:</span>
+                                <select id="pasteLanguage" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-[10px] text-white focus:outline-none focus:border-cyan-400 cursor-pointer">
+                                    <option value="en">English (US Format)</option>
+                                    <option value="es">Español (EU Format)</option>
+                                    <option value="fr">Français (EU Format)</option>
+                                </select>
+                            </div>
+
+                            <textarea id="pasteArea" class="paste-zone w-full h-32 bg-slate-900/50 rounded p-2 text-[10px] text-slate-300 font-mono resize-none focus:outline-none" placeholder="Paste data from Yahoo Finance here..."></textarea>
                         </div>
 
                         <button onclick="parseAndFill()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded mb-4 transition-colors flex items-center justify-center gap-2">
@@ -193,7 +204,10 @@
                                 <input type="number" step="0.01" id="ni_ttm">
                             </div>
                             <div class="input-group">
-                                <label>FCF (TTM)</label>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="!mb-0">FCF (TTM)</label>
+                                    <button type="button" onclick="rollForward()" class="text-[9px] bg-indigo-900/50 hover:bg-indigo-700 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30 transition-colors" title="Project FCF forward 1 year based on growth rate">⏩ Forward</button>
+                                </div>
                                 <input type="number" step="0.01" id="fcf_ttm" required>
                             </div>
                         </div>
@@ -408,49 +422,151 @@
             window.open(`https://finance.yahoo.com/quote/${ticker}/key-statistics/`, '_blank');
         }
 
+        function rollForward() {
+            const fcfInput = document.getElementById('fcf_ttm');
+            const growthInput = document.getElementById('growth_rate');
+            
+            let fcf = parseFloat(fcfInput.value);
+            let growth = parseFloat(growthInput.value);
+            
+            if (isNaN(fcf)) {
+                alert("Enter a starting FCF value first.");
+                return;
+            }
+            if (isNaN(growth)) growth = 0; // Default to 0 if empty
+            
+            // Calculate Forward FCF
+            const forwardFcf = fcf * (1 + (growth / 100));
+            
+            // Update Value
+            fcfInput.value = forwardFcf.toFixed(2);
+            
+            // Animation
+            gsap.from(fcfInput, {
+                backgroundColor: "rgba(16, 185, 129, 0.4)", // Green flash
+                duration: 0.5,
+                clearProps: "backgroundColor"
+            });
+        }
+
         function parseAndFill() {
-            const text = document.getElementById('pasteArea').value;
+            let text = document.getElementById('pasteArea').value.toLowerCase();
+            const lang = document.getElementById('pasteLanguage').value; 
+            
             if(!text) return alert("Paste some data first!");
 
             document.getElementById('extractStatus').classList.remove('hidden');
 
-            // --- Regex Helpers for Yahoo Finance Format ---
-            // Handles "1.23B", "1.23T", "1.23M" and "1,234.56"
-            function extractNumber(label) {
-                // Look for label, followed by some distance, then a number with B/T/M suffix
-                const regex = new RegExp(`${label}.*?([0-9.,]+[BTMk]?)`, 'i');
-                const match = text.match(regex);
-                if(match && match[1]) {
-                    return parseFinancialString(match[1]);
+            // --- Pre-process text to normalize spacing (Crucial for copy-paste robustness) ---
+            // Replaces multiple newlines/tabs with a single space to make regex scanning linear
+            text = text.replace(/\s+/g, ' ');
+
+            // --- Label Dictionaries ---
+            const labels = {
+                en: {
+                    // Prioritize labels with footnote '5' attached or specific wording
+                    shares: ["shares outstanding 5", "shares outstanding", "implied shares outstanding"],
+                    beta: ["beta (5y monthly)", "beta (5-year monthly)"],
+                    netIncome: ["net income avl to common (ttm)", "net income avl to common", "net income available to common", "net income"],
+                    fcf: ["levered free cash flow (ttm)", "levered free cash flow", "free cash flow"],
+                    cash: ["total cash (mrq)", "total cash"],
+                    debt: ["total debt (mrq)", "total debt"],
+                    priceAnchor: "previous close"
+                },
+                es: {
+                    shares: ["acciones en circulación 5", "acciones en circulación", "acciones en circulacion"],
+                    beta: ["beta (5 a", "beta (5y"],
+                    netIncome: ["ingresos netos disponibles", "ingreso neto disponible", "ingreso neto"],
+                    fcf: ["flujo de efectivo apalancado", "flujo de caja libre", "flujo de efectivo libre"],
+                    cash: ["efectivo total", "total de efectivo"],
+                    debt: ["endeudamiento total", "deuda total"],
+                    priceAnchor: ["cierre anterior", "cierre previo"]
+                },
+                fr: {
+                    shares: ["actions en attente 5", "actions en attente", "actions en circulation", "nombre d'actions"],
+                    // Updated to include the EXACT user provided format
+                    beta: ["bêta (mensuel sur 5 ans)", "bêta (mensuel", "bêta (5", "beta (mensuel"],
+                    netIncome: ["bénéfice net disponible distribuable", "résultat net part du groupe", "bénéfice net"],
+                    fcf: ["effet de levier de flux de trésorerie libre", "flux de trésorerie disponible", "free cash flow"],
+                    cash: ["trésorerie totale", "disponibilités totales"],
+                    debt: ["dette totale"],
+                    priceAnchor: "clôture précédente"
+                }
+            };
+
+            const currentLabels = labels[lang];
+
+            // --- Regex Helpers ---
+            function extractNumber(labelKeys) {
+                const keys = Array.isArray(labelKeys) ? labelKeys : [labelKeys];
+                
+                for (let key of keys) {
+                    // Escape special regex chars in key
+                    const safeKey = key.replace(/[()]/g, "\\$&"); 
+                    
+                    // Regex: Look for Label 
+                    // -> skip maximum 60 chars (.{0,60}?) to avoid finding a number 5 rows down
+                    // -> Number (digits, dots, commas) -> Optional Suffix (B, M, T, K, Mds, MM)
+                    // The number MUST start with a digit (or minus sign)
+                    // We allow spaces inside the number for FR/ES formats
+                    const regex = new RegExp(`${safeKey}.{0,60}?([0-9-][0-9.,\\s]*[BTMkMd]*)`, 'i');
+                    const match = text.match(regex);
+                    if(match && match[1]) {
+                        // Only return if it looks like a valid number string
+                        const raw = match[1].trim();
+                        // Filter out dates or purely text matches
+                        if (/[0-9]/.test(raw)) {
+                            return parseFinancialString(raw);
+                        }
+                    }
                 }
                 return null;
             }
 
-            // Specific Regex for Price at the top of Yahoo/Google pages
-            // Pattern: Number followed by +/- Number followed by (% or similar)
-            // Example: 226.80 +1.57 (+0.70%) or 140.00 -0.50 (-0.3%)
+            // Flexible Price Regex
             function extractPrice() {
-                const regex = /([0-9,]+\.[0-9]{2})\s*[+-]?[0-9,]+\.[0-9]{2}\s*\(/;
+                // Look for Price + Change pattern typical in headers
+                // Matches "123.45 +1.00" or "123,45 -0,50"
+                const regex = /([0-9.,]+)\s*[+-]?[0-9.,]+\s*\(/;
                 const match = text.match(regex);
                 if (match && match[1]) {
-                    return parseFloat(match[1].replace(/,/g, ''));
+                    return parseFinancialString(match[1]);
                 }
-                // Fallback to "Previous Close" if header regex fails
-                const close = extractNumber("previous close");
-                return close || 0;
+                // Fallback to previous close anchor
+                return extractNumber(currentLabels.priceAnchor) || 0;
             }
 
-            // Parsing "1.52B" -> 1.52 (We normalize everything to Billions usually, or keep raw)
-            // Let's normalize everything to BILLIONS for the calculator.
+            // Multi-Locale Number Parser
             function parseFinancialString(str) {
-                str = str.toUpperCase().replace(/,/g, '');
-                let val = parseFloat(str);
-                if(str.includes('T')) val *= 1000; // Trillions to Billions
-                else if(str.includes('M')) val /= 1000; // Millions to Billions
-                else if(str.includes('K')) val /= 1000000; 
-                // If it ends in B, it's already billions.
-                // If no suffix? Usually price or ratio.
-                return val;
+                str = str.trim().toUpperCase();
+                
+                // Remove internal spaces (common in French: 1 234)
+                str = str.replace(/\s/g, ''); 
+                
+                let valStr = str;
+                let multiplier = 1;
+                
+                // Handle Suffixes
+                if(str.includes('T')) { multiplier = 1000; valStr = str.replace('T',''); }
+                else if(str.includes('B')) { multiplier = 1; valStr = str.replace('B',''); } 
+                else if(str.includes('M') && !str.includes('MD') && !str.includes('MM')) { multiplier = 0.001; valStr = str.replace('M',''); } // US Million
+                else if(str.includes('MD')) { multiplier = 1; valStr = str.replace('MDS','').replace('MD',''); } // FR Milliard = Billion
+                else if(str.includes('MM')) { multiplier = 1; valStr = str.replace('MM',''); } // ES/US Finance MM = Billion
+                else if(str.includes('K')) { multiplier = 0.000001; valStr = str.replace('K',''); }
+
+                // Clean up any remaining non-numeric suffix chars just in case
+                valStr = valStr.replace(/[A-Z]/g, '');
+
+                // Format Handling based on Language
+                if (lang === 'en') {
+                    // US Format: 1,234.56 -> Remove commas
+                    valStr = valStr.replace(/,/g, '');
+                } else {
+                    // EU Format (ES/FR): 1.234,56 or 1 234,56 -> Remove dots, replace comma with dot
+                    valStr = valStr.replace(/\./g, '').replace(',', '.');
+                }
+                
+                return parseFloat(valStr) * multiplier;
             }
 
             // --- Execution ---
@@ -460,25 +576,24 @@
                 if(price) document.getElementById('price').value = price;
 
                 // 2. Shares
-                let shares = extractNumber("shares outstanding");
+                let shares = extractNumber(currentLabels.shares);
                 if(shares) document.getElementById('shares').value = shares;
 
                 // 3. Beta
-                let beta = extractNumber("beta \\(5y monthly\\)");
+                let beta = extractNumber(currentLabels.beta);
                 if(beta) document.getElementById('beta').value = beta;
 
                 // 4. Financials
-                let ni = extractNumber("net income avi to common");
+                let ni = extractNumber(currentLabels.netIncome);
                 if(ni) document.getElementById('ni_ttm').value = ni;
 
-                // FCF is tricky. "Levered Free Cash Flow" is usually there.
-                let fcf = extractNumber("levered free cash flow");
+                let fcf = extractNumber(currentLabels.fcf);
                 if(fcf) document.getElementById('fcf_ttm').value = fcf;
 
-                let cash = extractNumber("total cash \\(mrq\\)");
+                let cash = extractNumber(currentLabels.cash);
                 if(cash) document.getElementById('cash').value = cash;
 
-                let debt = extractNumber("total debt \\(mrq\\)");
+                let debt = extractNumber(currentLabels.debt);
                 if(debt) document.getElementById('debt').value = debt;
 
                 // Update Badge
@@ -491,7 +606,7 @@
 
             } catch (e) {
                 console.error(e);
-                alert("Could not parse data. Ensure you copied the 'Key Statistics' page text.");
+                alert("Could not parse data. Check language selection.");
                 document.getElementById('extractStatus').classList.add('hidden');
             }
         }
@@ -516,7 +631,6 @@
 
             // Blume's Adjustment
             // Adjusted Beta = (0.67 * Raw Beta) + (0.33 * 1.0)
-            // This pulls extreme betas towards the market average of 1.0
             const adjBeta = (0.67 * rawBeta) + (0.33 * 1.0);
 
             // WACC (Simplified)
@@ -529,8 +643,6 @@
 
             if (sector === 'bank') {
                 // DDM Proxy
-                // Formula: (Net Income / Shares) / (Cost of Equity - Growth)
-                // Note: We use WACC as proxy for Cost of Equity here for simplicity, or we can assume banks are mostly equity funded.
                 let g = Math.min(growthRate, 0.03); // Banks grow slow
                 intrinsicVal = (ni / shares) / (wacc - g);
                 method = "DDM (Income)";

@@ -200,7 +200,10 @@
                         <!-- Financials -->
                         <div class="grid grid-cols-2 gap-2">
                             <div class="input-group">
-                                <label>Net Income (TTM)</label>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="!mb-0">Net Income (TTM)</label>
+                                    <button type="button" onclick="rollForwardNI()" class="text-[9px] bg-indigo-900/50 hover:bg-indigo-700 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30 transition-colors" title="Project Net Income forward 1 year based on growth rate">⏩ Forward</button>
+                                </div>
                                 <input type="number" step="0.01" id="ni_ttm">
                             </div>
                             <div class="input-group">
@@ -443,6 +446,33 @@
             
             // Animation
             gsap.from(fcfInput, {
+                backgroundColor: "rgba(16, 185, 129, 0.4)", // Green flash
+                duration: 0.5,
+                clearProps: "backgroundColor"
+            });
+        }
+
+        function rollForwardNI() {
+            const niInput = document.getElementById('ni_ttm');
+            const growthInput = document.getElementById('growth_rate');
+            
+            let ni = parseFloat(niInput.value);
+            let growth = parseFloat(growthInput.value);
+            
+            if (isNaN(ni)) {
+                alert("Enter a starting Net Income value first.");
+                return;
+            }
+            if (isNaN(growth)) growth = 0; // Default to 0 if empty
+            
+            // Calculate Forward NI
+            const forwardNi = ni * (1 + (growth / 100));
+            
+            // Update Value
+            niInput.value = forwardNi.toFixed(2);
+            
+            // Animation
+            gsap.from(niInput, {
                 backgroundColor: "rgba(16, 185, 129, 0.4)", // Green flash
                 duration: 0.5,
                 clearProps: "backgroundColor"

@@ -20,6 +20,11 @@
     <!-- Markdown Parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+    <!-- Firebase SDKs (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -156,9 +161,56 @@
         table tr:last-child td {
             border-bottom: none;
         }
+
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #262626;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-6 px-4 relative bg-[#050505]">
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm hidden">
+        <div class="pro-panel p-8 rounded-md max-w-sm w-full relative bg-[#171717] border border-[#333]">
+            <button onclick="document.getElementById('authModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+            <h2 class="text-xl font-bold mb-6 text-white text-center">Cloud Access</h2>
+            
+            <div class="space-y-4">
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="authEmail" class="ws-input" placeholder="name@example.com">
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="authPass" class="ws-input" placeholder="••••••••">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="handleLogin()" class="flex-1 bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 rounded-sm text-sm transition-colors">LOG IN</button>
+                    <button onclick="handleSignUp()" class="flex-1 bg-[#262626] hover:bg-[#333] border border-gray-600 text-white font-bold py-2 rounded-sm text-sm transition-colors">SIGN UP</button>
+                </div>
+            </div>
+            <p class="text-[10px] text-gray-500 mt-4 text-center">Data syncs automatically.</p>
+        </div>
+    </div>
 
     <!-- Confirmation Modal -->
     <div id="confirmModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
@@ -203,24 +255,37 @@
                         </p>
                     </div>
                 </div>
-                <div class="text-right">
-                    <button onclick="document.getElementById('apiModal').classList.remove('hidden')" class="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1 ml-auto">
+                
+                <!-- Auth & Settings Area -->
+                <div class="text-right flex items-center gap-4 justify-end">
+                    <!-- Auth Section -->
+                    <div id="auth-section">
+                        <!-- Content injected via JS -->
+                        <button onclick="document.getElementById('authModal').classList.remove('hidden')" class="text-xs font-bold bg-blue-900/30 text-blue-400 border border-blue-800 px-3 py-1.5 rounded-sm hover:bg-blue-800/50 transition-colors">
+                            LOGIN / SIGN UP
+                        </button>
+                    </div>
+
+                    <div class="h-4 w-px bg-[#333]"></div>
+
+                    <button onclick="document.getElementById('apiModal').classList.remove('hidden')" class="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-bold uppercase tracking-wider">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        Settings
+                        API
                     </button>
                 </div>
             </div>
 
             <!-- Navigation -->
-            <div class="flex gap-1 bg-[#171717] p-1 rounded-md border border-[#262626] w-full max-w-md">
+            <div class="flex gap-1 bg-[#171717] p-1 rounded-md border border-[#262626] w-full max-w-lg">
                 <button onclick="switchTool('valuation')" id="nav-valuation" class="nav-btn active flex-1 py-2 text-[11px] font-bold uppercase tracking-wide rounded-sm">Valuation Model</button>
                 <button onclick="switchTool('portfolio')" id="nav-portfolio" class="nav-btn flex-1 py-2 text-[11px] font-bold uppercase tracking-wide rounded-sm">Portfolio Tracker</button>
                 <button onclick="switchTool('watchlist')" id="nav-watchlist" class="nav-btn flex-1 py-2 text-[11px] font-bold uppercase tracking-wide rounded-sm">Watchlist</button>
+                <button onclick="switchTool('compound')" id="nav-compound" class="nav-btn flex-1 py-2 text-[11px] font-bold uppercase tracking-wide rounded-sm">Compound</button>
             </div>
         </header>
 
         <!-- TOOL 1: VALUATION TERMINAL -->
-        <div id="view-valuation" class="tool-view grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div id="view-valuation" class="tool-view grid grid-cols-1 lg:grid-cols-12 gap-8">
             <!-- LEFT COLUMN: Smart Input -->
             <div class="lg:col-span-5">
                 <div class="pro-panel p-5">
@@ -278,15 +343,15 @@
                         <div class="grid grid-cols-3 gap-2">
                             <div class="input-group">
                                 <label>Price</label>
-                                <input type="number" step="0.01" id="price" required>
+                                <input type="text" id="price" required>
                             </div>
                             <div class="input-group">
                                 <label>Shares (B)</label>
-                                <input type="number" step="0.001" id="shares" required>
+                                <input type="text" id="shares" required>
                             </div>
                             <div class="input-group">
                                 <label>Raw Beta</label>
-                                <input type="number" step="0.01" id="beta" placeholder="1.0">
+                                <input type="text" id="beta" placeholder="1.0">
                             </div>
                         </div>
 
@@ -297,25 +362,25 @@
                                     <label class="!mb-0">Net Income (TTM)</label>
                                     <button type="button" onclick="rollForwardNI()" class="text-[9px] bg-[#262626] hover:bg-[#333] text-gray-400 px-1.5 rounded border border-[#333] transition-colors" title="Project forward 1 year">⏩ Roll Fwd</button>
                                 </div>
-                                <input type="number" step="0.01" id="ni_ttm">
+                                <input type="text" id="ni_ttm">
                             </div>
                             <div class="input-group">
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="!mb-0">FCF (TTM)</label>
                                     <button type="button" onclick="rollForward()" class="text-[9px] bg-[#262626] hover:bg-[#333] text-gray-400 px-1.5 rounded border border-[#333] transition-colors" title="Project forward 1 year">⏩ Roll Fwd</button>
                                 </div>
-                                <input type="number" step="0.01" id="fcf_ttm" required>
+                                <input type="text" id="fcf_ttm" required>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-2">
                             <div class="input-group">
                                 <label>Total Cash</label>
-                                <input type="number" step="0.01" id="cash">
+                                <input type="text" id="cash">
                             </div>
                             <div class="input-group">
                                 <label>Total Debt</label>
-                                <input type="number" step="0.01" id="debt">
+                                <input type="text" id="debt">
                             </div>
                         </div>
 
@@ -325,11 +390,11 @@
                             <div class="grid grid-cols-2 gap-2">
                                 <div class="input-group">
                                     <label>Growth Rate (%)</label>
-                                    <input type="number" step="0.1" id="growth_rate" value="10.0">
+                                    <input type="text" id="growth_rate" value="10.0">
                                 </div>
                                 <div class="input-group">
                                     <label>10Y Yield (RFR %)</label>
-                                    <input type="number" step="0.01" id="rfr" value="4.2">
+                                    <input type="text" id="rfr" value="4.2">
                                 </div>
                             </div>
                             <div class="input-group mt-2">
@@ -382,7 +447,7 @@
                                 <p class="text-lg font-mono text-blue-400 font-bold" id="resIntrinsic">$0.00</p>
                             </div>
                             <div>
-                                <p class="text-[10px] text-gray-500 uppercase font-bold">WACC (Adj)</p>
+                                <p class="text-[10px] text-gray-500 uppercase font-bold">Cost of Equity</p>
                                 <p class="text-lg font-mono text-white" id="resWacc">0.0%</p>
                             </div>
                             <div>
@@ -399,11 +464,34 @@
                         </div>
                     </div>
 
+                    <!-- Sensitivity Analysis -->
+                    <div class="pro-panel p-5">
+                        <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-3 tracking-widest">Sensitivity Analysis</h3>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="p-3 bg-red-900/10 border border-red-900/30 rounded-sm hover:bg-red-900/20 transition-colors">
+                                <p class="text-[10px] text-red-400 uppercase font-bold mb-1">Bear Case</p>
+                                <p class="text-[9px] text-gray-500 mb-2">Growth -2% / CoE +1%</p>
+                                <p class="text-lg font-mono font-bold text-red-400" id="valBear">$0.00</p>
+                            </div>
+                            <div class="p-3 bg-[#262626] border border-gray-600 rounded-sm relative overflow-hidden">
+                                <div class="absolute top-0 left-0 w-full h-0.5 bg-blue-500"></div>
+                                <p class="text-[10px] text-white uppercase font-bold mb-1">Base Case</p>
+                                <p class="text-[9px] text-gray-500 mb-2">Current Inputs</p>
+                                <p class="text-lg font-mono font-bold text-white" id="valBase">$0.00</p>
+                            </div>
+                            <div class="p-3 bg-green-900/10 border border-green-900/30 rounded-sm hover:bg-green-900/20 transition-colors">
+                                <p class="text-[10px] text-green-400 uppercase font-bold mb-1">Bull Case</p>
+                                <p class="text-[9px] text-gray-500 mb-2">Growth +2% / CoE -1%</p>
+                                <p class="text-lg font-mono font-bold text-green-400" id="valBull">$0.00</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Metrics Breakdown -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- Market Expectations -->
                         <div class="pro-panel p-5">
-                            <h3 class="text-yellow-500 font-bold uppercase text-[10px] tracking-widest mb-3">Reverse DCF (Implied Growth)</h3>
+                            <h3 class="text-yellow-600 font-bold uppercase text-[10px] tracking-widest mb-3">Reverse DCF (Implied Growth)</h3>
                             <div class="bg-black p-4 rounded border border-[#262626] flex flex-col justify-center h-[100px]">
                                 <div class="flex justify-between items-center mb-2">
                                     <span class="text-gray-500 text-[10px] uppercase">Priced-in Growth</span>
@@ -604,10 +692,10 @@
                                 <thead class="text-[10px] text-gray-500 uppercase bg-[#0f0f0f] border-b border-[#262626]">
                                     <tr>
                                         <th class="px-4 py-3">Ticker</th>
-                                        <th class="px-4 py-3 text-right">Target (Intrinsic)</th>
+                                        <th class="px-4 py-3 text-right">Target (Range)</th>
                                         <th class="px-4 py-3 text-right w-24">Last Price</th>
                                         <th class="px-4 py-3 text-right">Margin of Safety</th>
-                                        <th class="px-4 py-3 text-center"></th>
+                                        <th class="px-4 py-3 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="watchlistTableBody" class="text-gray-300 font-mono">
@@ -623,11 +711,214 @@
             </div>
         </div>
 
+        <!-- TOOL 4: COMPOUND CALCULATOR -->
+        <div id="view-compound" class="tool-view hidden max-w-6xl mx-auto">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Inputs -->
+                <div class="lg:col-span-4">
+                    <div class="pro-panel p-6">
+                        <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 bg-purple-500 rounded-sm"></span>
+                            Parameters
+                        </h2>
+                        <div class="space-y-4">
+                            <div class="input-group">
+                                <label>Initial Principal</label>
+                                <input type="text" id="comp_principal" value="10000" oninput="updateCompoundCalc()">
+                            </div>
+                            <div class="input-group">
+                                <label>Monthly Contribution</label>
+                                <input type="text" id="comp_monthly" value="500" oninput="updateCompoundCalc()">
+                            </div>
+                            <div class="input-group">
+                                <label>Annual Return (%)</label>
+                                <input type="text" id="comp_rate" value="8" oninput="updateCompoundCalc()">
+                            </div>
+                            <div class="input-group">
+                                <label>Time Horizon (Years): <span id="comp_years_disp" class="text-blue-500">20</span></label>
+                                <input type="range" id="comp_years" min="1" max="50" value="20" class="mt-2" oninput="updateCompoundCalc()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Result Card -->
+                    <div class="pro-panel p-6 mt-6 bg-[#111] border-purple-900/30 border">
+                        <h3 class="text-[10px] text-gray-500 uppercase font-bold mb-4 tracking-widest">Projected Portfolio Value</h3>
+                        <p class="text-3xl font-mono font-bold text-white mb-2" id="comp_final_val">$0.00</p>
+                        <div class="text-xs space-y-1">
+                            <div class="flex justify-between text-gray-400">
+                                <span>Total Invested:</span>
+                                <span class="font-mono text-white" id="comp_total_inv">$0.00</span>
+                            </div>
+                            <div class="flex justify-between text-gray-400">
+                                <span>Total Interest:</span>
+                                <span class="font-mono text-green-400" id="comp_total_int">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart & Table -->
+                <div class="lg:col-span-8 space-y-6">
+                    <div class="pro-panel p-4 h-[350px]">
+                        <h3 class="text-[10px] font-bold text-gray-500 uppercase mb-3 tracking-widest">Growth Trajectory</h3>
+                        <div class="h-[280px] relative w-full">
+                            <canvas id="chartCompound"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Breakdown Table -->
+                    <div class="pro-panel p-0 max-h-[300px] overflow-y-auto">
+                         <table class="w-full text-xs text-left">
+                            <thead class="text-[10px] text-gray-500 uppercase bg-[#0f0f0f] border-b border-[#262626] sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3">Year</th>
+                                    <th class="px-4 py-3 text-right">Invested</th>
+                                    <th class="px-4 py-3 text-right">Interest</th>
+                                    <th class="px-4 py-3 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compoundTableBody" class="text-gray-300 font-mono">
+                                <!-- Rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <script>
         // --- Configuration ---
+        // Load config from environment or use default
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyBusf22EUIeFzxwifZbfd4tMfvOOcr7AiU", 
+            authDomain: "road-to-a-millie.firebaseapp.com",
+            projectId: "road-to-a-millie",
+            storageBucket: "road-to-a-millie.firebasestorage.app",
+            messagingSenderId: "1089973884329",
+            appId: "1:1089973884329:web:704b79247df4c1392b60b8",
+            measurementId: "G-..."
+        };
+        
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
         let apiKey = localStorage.getItem('gemini_api_key') || '';
+        let currentUser = null;
+
+        // --- Helper Function: Parse Input with Comma Support ---
+        function parseInput(id) {
+            let val = document.getElementById(id).value;
+            // Handle European format: replace comma with dot
+            val = val.replace(/,/g, '.');
+            return parseFloat(val) || 0;
+        }
+
+        // --- Auth & Cloud Logic ---
+        auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            const authSection = document.getElementById('auth-section');
+            if (user) {
+                // Logged In UI
+                authSection.innerHTML = `
+                    <span class="text-xs text-green-400 font-mono mr-2">${user.email}</span>
+                    <button onclick="handleLogout()" class="text-xs font-bold bg-[#262626] text-gray-400 border border-[#333] px-3 py-1.5 rounded-sm hover:text-white transition-colors">LOG OUT</button>
+                `;
+                document.getElementById('authModal').classList.add('hidden');
+                loadFromCloud(); // Auto-load cloud data
+            } else {
+                // Logged Out UI
+                authSection.innerHTML = `
+                    <button onclick="document.getElementById('authModal').classList.remove('hidden')" class="text-xs font-bold bg-blue-900/30 text-blue-400 border border-blue-800 px-3 py-1.5 rounded-sm hover:bg-blue-800/50 transition-colors">
+                        LOGIN / SIGN UP
+                    </button>
+                `;
+                // Load Local Fallback
+                loadFromLocal();
+            }
+        });
+
+        function handleSignUp() {
+            const email = document.getElementById('authEmail').value;
+            const pass = document.getElementById('authPass').value;
+            auth.createUserWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+        }
+
+        function handleLogin() {
+            const email = document.getElementById('authEmail').value;
+            const pass = document.getElementById('authPass').value;
+            auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+        }
+
+        function handleLogout() {
+            auth.signOut();
+            showToast("Logged Out");
+        }
+
+        // --- Persistence Logic ---
+        // Path: artifacts/{appId}/users/{userId}/financials/data
+        const getDataRef = () => db.collection('artifacts').doc(appId).collection('users').doc(currentUser.uid).collection('financials').doc('data');
+
+        function saveToCloud() {
+            if (!currentUser) return;
+            
+            getDataRef().set({
+                portfolio: portfolio,
+                watchlist: watchlist,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(() => {
+                showToast("Synced to Cloud");
+            }).catch(e => console.error("Cloud Save Error", e));
+        }
+
+        function loadFromCloud() {
+            if (!currentUser) return;
+            
+            getDataRef().get().then((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.portfolio) {
+                        portfolio = data.portfolio;
+                        // Also sync local storage for redundancy
+                        localStorage.setItem('millie_portfolio', JSON.stringify(portfolio));
+                    }
+                    if (data.watchlist) {
+                        watchlist = data.watchlist;
+                        localStorage.setItem('millie_watchlist', JSON.stringify(watchlist));
+                    }
+                    refreshUI();
+                    showToast("Data Loaded from Cloud");
+                }
+            }).catch(e => console.error("Cloud Load Error", e));
+        }
+
+        function loadFromLocal() {
+            portfolio = JSON.parse(localStorage.getItem('millie_portfolio')) || [];
+            watchlist = JSON.parse(localStorage.getItem('millie_watchlist')) || [];
+            // Ensure data structure integrity
+            portfolio = portfolio.map(p => ({...p, id: p.id || crypto.randomUUID(), sector: p.sector || 'Other'}));
+            watchlist = watchlist.map(w => ({
+                 ...w, 
+                 id: w.id || crypto.randomUUID(),
+                 targetLow: w.targetLow || w.targetPrice * 0.8,
+                 targetHigh: w.targetHigh || w.targetPrice * 1.2
+            }));
+            refreshUI();
+        }
+        
+        function refreshUI() {
+            renderPortfolio();
+            renderWatchlist();
+            // Re-render chart if visible
+            if (!document.getElementById('view-portfolio').classList.contains('hidden')) {
+                renderCharts();
+            }
+        }
 
         // --- Confirmation Modal Logic ---
         let pendingAction = null;
@@ -666,6 +957,10 @@
                 setTimeout(renderCharts, 100);
             }
             if(toolName === 'watchlist') renderWatchlist();
+            if(toolName === 'compound') {
+                // Initialize compound calc on first view
+                if(!chartCompoundInstance) updateCompoundCalc();
+            }
         }
 
         function setMode(mode) {
@@ -701,23 +996,26 @@
         }
 
         // --- 2. Portfolio Logic ---
-        let portfolio = JSON.parse(localStorage.getItem('millie_portfolio')) || [];
-        portfolio = portfolio.map(p => ({...p, id: p.id || crypto.randomUUID(), sector: p.sector || 'Other'}));
-
+        let portfolio = []; // Initialized in load functions
+        
         // --- 3. Watchlist Logic ---
-        let watchlist = JSON.parse(localStorage.getItem('millie_watchlist')) || [];
-        watchlist = watchlist.map(w => ({...w, id: w.id || crypto.randomUUID()}));
+        let watchlist = []; // Initialized in load functions
 
-        function addToWatchlist(ticker, target, current) {
+        function addToWatchlist(ticker, target, current, low, high) {
+            // Check if already exists
             const exists = watchlist.find(w => w.ticker === ticker);
             if (exists) {
                 exists.targetPrice = parseFloat(target);
+                exists.targetLow = parseFloat(low);
+                exists.targetHigh = parseFloat(high);
                 exists.currentPrice = parseFloat(current);
             } else {
                 watchlist.push({
                     id: crypto.randomUUID(),
                     ticker: ticker,
                     targetPrice: parseFloat(target),
+                    targetLow: parseFloat(low),
+                    targetHigh: parseFloat(high),
                     currentPrice: parseFloat(current)
                 });
             }
@@ -728,22 +1026,35 @@
 
         function addToWatchlistManual() {
             const ticker = document.getElementById('wl_ticker').value.toUpperCase();
-            const target = document.getElementById('wl_target').value;
-            const current = document.getElementById('wl_price').value || 0;
+            const target = parseInput('wl_target');
+            const current = parseInput('wl_price') || 0;
             
             if(!ticker || !target) return;
-            addToWatchlist(ticker, target, current);
+            // For manual entry, low/high/base are same unless manually added (UI simplified)
+            // Auto generate +/- 20% range for manual entries
+            const base = parseFloat(target);
+            addToWatchlist(ticker, base, current, base * 0.8, base * 1.2);
             document.getElementById('watchlistForm').reset();
         }
 
         function addValuationToWatchlist() {
             const ticker = document.getElementById('smartTicker').value.toUpperCase() || document.getElementById('resTicker').innerText;
-            const intrinsic = parseFloat(document.getElementById('resIntrinsic').innerText.replace('$',''));
-            const current = parseFloat(document.getElementById('resPrice').innerText.replace('$',''));
+            // Clean currency symbol and non-numeric chars
+            const intrinsicStr = document.getElementById('resIntrinsic').innerText.replace(/[^0-9.-]+/g,"");
+            const currentStr = document.getElementById('resPrice').innerText.replace(/[^0-9.-]+/g,"");
+            
+            // Get Sensitivity Values from DOM
+            const lowStr = document.getElementById('valBear').innerText.replace(/[^0-9.-]+/g,"");
+            const highStr = document.getElementById('valBull').innerText.replace(/[^0-9.-]+/g,"");
+            
+            const intrinsic = parseFloat(intrinsicStr);
+            const current = parseFloat(currentStr);
+            const low = parseFloat(lowStr);
+            const high = parseFloat(highStr);
             
             if (!intrinsic || intrinsic === 0) return alert("Calculate a valuation first.");
             
-            addToWatchlist(ticker, intrinsic, current);
+            addToWatchlist(ticker, intrinsic, current, low, high);
         }
 
         function deleteWatchlistItem(id) {
@@ -755,14 +1066,21 @@
         function updateWatchlistPrice(id, price) {
             const idx = watchlist.findIndex(w => w.id === id);
             if(idx >= 0) {
-                watchlist[idx].currentPrice = parseFloat(price) || 0;
+                // Manually parse since this is an inline input event, not parseInput()
+                // But we can use our helper logic here
+                let val = price.replace(/,/g, '.');
+                watchlist[idx].currentPrice = parseFloat(val) || 0;
                 saveWatchlist();
                 renderWatchlist();
             }
         }
 
         function saveWatchlist() {
-            localStorage.setItem('millie_watchlist', JSON.stringify(watchlist));
+            if (currentUser) {
+                saveToCloud();
+            } else {
+                localStorage.setItem('millie_watchlist', JSON.stringify(watchlist));
+            }
         }
 
         function renderWatchlist() {
@@ -775,6 +1093,8 @@
                 document.getElementById('emptyWatchlist').classList.add('hidden');
                 
                 watchlist.forEach((item) => {
+                    // Margin of Safety: (Intrinsic - Current) / Current
+                    // Positive margin means undervalued
                     let mos = 0;
                     if(item.currentPrice > 0) {
                         mos = ((item.targetPrice - item.currentPrice) / item.currentPrice) * 100;
@@ -782,13 +1102,16 @@
                     
                     const mosColor = mos > 0 ? 'text-green-500' : 'text-red-500';
                     const mosText = mos > 0 ? `Undervalued (${mos.toFixed(1)}%)` : `Premium (${Math.abs(mos).toFixed(1)}%)`;
+                    
+                    // Format Range Display: Low | Mid | High
+                    const rangeDisplay = `$${item.targetLow.toFixed(2)} | <span class="text-blue-400 font-bold">$${item.targetPrice.toFixed(2)}</span> | $${item.targetHigh.toFixed(2)}`;
 
                     const row = document.createElement('tr');
                     row.className = "hover:bg-[#1a1a1a] transition-colors border-b border-[#262626]";
                     
                     row.innerHTML = `
                         <td class="px-4 py-3 font-bold text-white font-sans">${item.ticker}</td>
-                        <td class="px-4 py-3 text-right text-blue-400 font-bold">$${item.targetPrice.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-right text-gray-400 font-mono text-xs whitespace-nowrap">${rangeDisplay}</td>
                         <td class="px-4 py-3 text-right">
                             <input type="number" step="0.01" value="${item.currentPrice}" 
                                 onchange="updateWatchlistPrice('${item.id}', this.value)"
@@ -872,8 +1195,8 @@
         function addPosition() {
             const ticker = document.getElementById('pf_ticker').value.toUpperCase();
             const sector = document.getElementById('pf_sector').value;
-            const shares = parseFloat(document.getElementById('pf_shares').value);
-            const price = parseFloat(document.getElementById('pf_price').value);
+            const shares = parseInput('pf_shares');
+            const price = parseInput('pf_price');
 
             if(!ticker || isNaN(shares) || isNaN(price)) return;
 
@@ -914,7 +1237,8 @@
         function updateCurrentPrice(id, newPrice) {
             const idx = portfolio.findIndex(p => p.id === id);
             if(idx >= 0) {
-                portfolio[idx].currentPrice = parseFloat(newPrice) || 0;
+                let val = newPrice.replace(/,/g, '.');
+                portfolio[idx].currentPrice = parseFloat(val) || 0;
                 savePortfolio();
                 renderPortfolio();
                 renderCharts();
@@ -979,7 +1303,11 @@
         }
 
         function savePortfolio() {
-            localStorage.setItem('millie_portfolio', JSON.stringify(portfolio));
+            if (currentUser) {
+                saveToCloud();
+            } else {
+                localStorage.setItem('millie_portfolio', JSON.stringify(portfolio));
+            }
         }
 
         // --- 6. Charts Logic ---
@@ -1120,8 +1448,129 @@
             document.getElementById('totalPnL').innerHTML = `<span class="${totalColor}">${totalSign}$${totalPnL.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${totalSign}${totalPnLPct.toFixed(2)}%)</span>`;
         }
 
+        // --- 7. Compound Calculator Logic ---
+        let chartCompoundInstance = null;
 
-        // --- 7. Smart Parser Logic (Valuation Tool) ---
+        function updateCompoundCalc() {
+            const P = parseInput('comp_principal');
+            const PMT = parseInput('comp_monthly');
+            const r = parseInput('comp_rate') / 100;
+            const years = parseInt(document.getElementById('comp_years').value);
+            
+            document.getElementById('comp_years_disp').innerText = years;
+            
+            const n = 12; // Monthly
+            let dataInvested = [];
+            let dataBalance = [];
+            let labels = [];
+            let yearlyBreakdown = [];
+            
+            let currentBalance = P;
+            let currentInvested = P;
+            
+            for(let i = 0; i <= years; i++) {
+                labels.push(`Year ${i}`);
+                dataInvested.push(currentInvested);
+                dataBalance.push(currentBalance);
+                
+                // Store breakdown for table
+                if (i > 0) {
+                     yearlyBreakdown.push({
+                         year: i,
+                         invested: currentInvested,
+                         interest: currentBalance - currentInvested,
+                         total: currentBalance
+                     });
+                }
+
+                // Advance one year (12 months)
+                if (i < years) {
+                    for(let m=0; m<12; m++) {
+                        currentBalance = (currentBalance + PMT) * (1 + r/n);
+                        currentInvested += PMT;
+                    }
+                }
+            }
+
+            // Update Headline Numbers
+            document.getElementById('comp_final_val').innerText = `$${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('comp_total_inv').innerText = `$${currentInvested.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('comp_total_int').innerText = `$${(currentBalance - currentInvested).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            
+            // Update Table
+            const tbody = document.getElementById('compoundTableBody');
+            tbody.innerHTML = '';
+            // Show every 5th year + final year to save space, or all if short duration
+            yearlyBreakdown.forEach(row => {
+                if (row.year === 1 || row.year % 5 === 0 || row.year === years) {
+                     const tr = document.createElement('tr');
+                     tr.className = "border-b border-[#262626] hover:bg-[#1a1a1a] transition-colors";
+                     tr.innerHTML = `
+                        <td class="px-4 py-2 font-bold text-white">${row.year}</td>
+                        <td class="px-4 py-2 text-right text-gray-400">$${row.invested.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                        <td class="px-4 py-2 text-right text-green-400">+$${row.interest.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                        <td class="px-4 py-2 text-right font-bold text-white">$${row.total.toLocaleString(undefined, {maximumFractionDigits:0})}</td>
+                     `;
+                     tbody.appendChild(tr);
+                }
+            });
+
+            // Update Chart
+            const ctx = document.getElementById('chartCompound').getContext('2d');
+            if (chartCompoundInstance) chartCompoundInstance.destroy();
+            
+            chartCompoundInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Portfolio Value',
+                            data: dataBalance,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Cash Invested',
+                            data: dataInvested,
+                            borderColor: '#6b7280',
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#9ca3af' } },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: $${context.raw.toLocaleString()}`;
+                                }
+                             }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: '#6b7280', callback: function(value) { return '$' + value.toLocaleString(); } },
+                            grid: { color: '#374151' }
+                        },
+                        x: {
+                            ticks: { color: '#6b7280' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- 8. Smart Parser Logic (Valuation Tool) ---
         function openDataSource() {
             const ticker = document.getElementById('smartTicker').value;
             if(!ticker) return alert("Enter a ticker first!");
@@ -1131,10 +1580,11 @@
         function rollForward() {
             const fcfInput = document.getElementById('fcf_ttm');
             const growthInput = document.getElementById('growth_rate');
-            let fcf = parseFloat(fcfInput.value);
-            let growth = parseFloat(growthInput.value);
-            if (isNaN(fcf)) return alert("Enter a starting FCF value first.");
-            if (isNaN(growth)) growth = 0; 
+            let fcf = parseInput('fcf_ttm');
+            let growth = parseInput('growth_rate');
+            
+            if (fcf === 0 && document.getElementById('fcf_ttm').value === "") return alert("Enter a starting FCF value first.");
+            
             const forwardFcf = fcf * (1 + (growth / 100));
             fcfInput.value = forwardFcf.toFixed(2);
             gsap.from(fcfInput, { backgroundColor: "rgba(16, 185, 129, 0.4)", duration: 0.5, clearProps: "backgroundColor" });
@@ -1143,10 +1593,11 @@
         function rollForwardNI() {
             const niInput = document.getElementById('ni_ttm');
             const growthInput = document.getElementById('growth_rate');
-            let ni = parseFloat(niInput.value);
-            let growth = parseFloat(growthInput.value);
-            if (isNaN(ni)) return alert("Enter a starting Net Income value first.");
-            if (isNaN(growth)) growth = 0;
+            let ni = parseInput('ni_ttm');
+            let growth = parseInput('growth_rate');
+            
+            if (ni === 0 && document.getElementById('ni_ttm').value === "") return alert("Enter a starting Net Income value first.");
+            
             const forwardNi = ni * (1 + (growth / 100));
             niInput.value = forwardNi.toFixed(2);
             gsap.from(niInput, { backgroundColor: "rgba(16, 185, 129, 0.4)", duration: 0.5, clearProps: "backgroundColor" });
@@ -1154,7 +1605,7 @@
 
         function parseAndFill() {
             let text = document.getElementById('pasteArea').value.toLowerCase();
-            const lang = document.getElementById('pasteLanguage').value; 
+            const lang = document.getElementById('pasteLanguage').value; 
             
             if(!text) return alert("Paste some data first!");
 
@@ -1196,7 +1647,7 @@
             function extractNumber(labelKeys) {
                 const keys = Array.isArray(labelKeys) ? labelKeys : [labelKeys];
                 for (let key of keys) {
-                    const safeKey = key.replace(/[()]/g, "\\$&"); 
+                    const safeKey = key.replace(/[()]/g, "\\$&"); 
                     const regex = new RegExp(`${safeKey}.{0,60}?([0-9-][0-9.,\\s]*[BTMkMd]*)`, 'i');
                     const match = text.match(regex);
                     if(match && match[1]) {
@@ -1220,13 +1671,13 @@
 
             function parseFinancialString(str) {
                 str = str.trim().toUpperCase();
-                str = str.replace(/\s/g, ''); 
+                str = str.replace(/\s/g, ''); 
                 
                 let valStr = str;
                 let multiplier = 1;
                 
                 if(str.includes('T')) { multiplier = 1000; valStr = str.replace('T',''); }
-                else if(str.includes('B')) { multiplier = 1; valStr = str.replace('B',''); } 
+                else if(str.includes('B')) { multiplier = 1; valStr = str.replace('B',''); } 
                 else if(str.includes('M') && !str.includes('MD') && !str.includes('MM')) { multiplier = 0.001; valStr = str.replace('M',''); }
                 else if(str.includes('MD')) { multiplier = 1; valStr = str.replace('MDS','').replace('MD',''); }
                 else if(str.includes('MM')) { multiplier = 1; valStr = str.replace('MM',''); }
@@ -1270,50 +1721,103 @@
             }
         }
 
-        // --- 8. Valuation Logic ---
-        function runAnalysis() {
-            const price = parseFloat(document.getElementById('price').value) || 0;
-            const shares = parseFloat(document.getElementById('shares').value) || 0;
-            const rawBeta = parseFloat(document.getElementById('beta').value) || 1.0;
-            const ni = parseFloat(document.getElementById('ni_ttm').value) || 0;
-            const fcf = parseFloat(document.getElementById('fcf_ttm').value) || 0;
-            const cash = parseFloat(document.getElementById('cash').value) || 0;
-            const debt = parseFloat(document.getElementById('debt').value) || 0;
-            const growthRate = parseFloat(document.getElementById('growth_rate').value) / 100;
-            const sector = document.getElementById('sector').value;
-            const rfrInput = parseFloat(document.getElementById('rfr').value) || 4.2;
-            const rfr = rfrInput / 100;
-
-            const adjBeta = (0.67 * rawBeta) + (0.33 * 1.0);
-            const wacc = rfr + (adjBeta * 0.055); 
-
+        // --- 9. Valuation Logic (Pure Calculation) ---
+        function calculateIntrinsicValue(inputs) {
+            const { fcf, shares, growthRate, costOfEquity, sector, cash, debt, ni } = inputs;
             let intrinsicVal = 0;
             let exitMultiple = 15;
 
             if (sector === 'bank') {
-                let g = Math.min(growthRate, 0.03); 
-                intrinsicVal = (ni / shares) / (wacc - g);
+                // DDM Proxy: Assume 50% Payout Ratio (Standard for healthy banks)
+                // Cap growth at 3% max for terminal/perpetuity stability
+                let g = Math.min(growthRate, 0.03); 
+                let impliedDividend = ni * 0.50; 
+                intrinsicVal = (impliedDividend / shares) / (costOfEquity - g);
             } else if (sector === 'reit') {
-                intrinsicVal = (fcf / shares) * 15; 
+                // Price/FFO Multiple
+                intrinsicVal = (fcf / shares) * 15; 
             } else {
+                // DCF Model
                 if (sector === 'tech') exitMultiple = 15;
                 if (sector === 'high_tech') exitMultiple = 30;
                 if (sector === 'industrial') exitMultiple = 7;
                 
                 let sumPV = 0;
                 let futureFCF = fcf;
+                
+                // 10 Year Projection
                 for(let i=1; i<=10; i++) {
+                    // Decay growth rate logic: linear decay to 3% terminal
                     let g = growthRate - ((growthRate - 0.03) * (i/10));
                     futureFCF = futureFCF * (1 + g);
-                    sumPV += futureFCF / Math.pow(1 + wacc, i);
+                    sumPV += futureFCF / Math.pow(1 + costOfEquity, i);
                 }
+                
+                // Terminal Value
                 let termVal = futureFCF * exitMultiple;
-                let pvTerm = termVal / Math.pow(1 + wacc, 10);
-                let enterpriseValue = sumPV + pvTerm;
-                let equityValue = enterpriseValue + cash - debt;
+                let pvTerm = termVal / Math.pow(1 + costOfEquity, 10);
+                
+                // Equity Value Calculation (Corrected):
+                // Since FCF is Levered (available to equity holders), we do NOT subtract debt again.
+                // We add a portion of cash as a safety buffer / non-operating asset.
+                let equityValue = sumPV + pvTerm + (cash * 0.5); 
                 intrinsicVal = equityValue / shares;
             }
+            return intrinsicVal;
+        }
 
+        function runAnalysis() {
+            const price = parseInput('price');
+            const shares = parseInput('shares');
+            let rawBeta = parseInput('beta');
+            // Default Beta to 1.0 if empty/zero
+            if (rawBeta === 0 && document.getElementById('beta').value === "") rawBeta = 1.0;
+
+            const ni = parseInput('ni_ttm');
+            const fcf = parseInput('fcf_ttm');
+            const cash = parseInput('cash');
+            const debt = parseInput('debt');
+            
+            // Base Growth & Rate
+            const baseGrowthRate = parseInput('growth_rate') / 100;
+            const rfrInput = parseInput('rfr');
+            // Default RFR if empty
+            const rfrVal = (rfrInput === 0 && document.getElementById('rfr').value === "") ? 4.2 : rfrInput;
+            const rfr = rfrVal / 100;
+            
+            const sector = document.getElementById('sector').value;
+
+            // Beta Adjustment (Blume's)
+            const adjBeta = (0.67 * rawBeta) + (0.33 * 1.0);
+            
+            // Base Cost of Equity (Not WACC)
+            const baseCostOfEquity = rfr + (adjBeta * 0.055); 
+
+            // Common inputs object for helper function
+            const commonInputs = { fcf, shares, sector, cash, debt, ni };
+
+            // 1. Calculate Base Case
+            const intrinsicVal = calculateIntrinsicValue({
+                ...commonInputs,
+                growthRate: baseGrowthRate,
+                costOfEquity: baseCostOfEquity
+            });
+
+            // 2. Calculate Bear Case (Growth - 2%, CoE + 1%)
+            const bearVal = calculateIntrinsicValue({
+                ...commonInputs,
+                growthRate: Math.max(0, baseGrowthRate - 0.02),
+                costOfEquity: baseCostOfEquity + 0.01
+            });
+
+            // 3. Calculate Bull Case (Growth + 2%, CoE - 1%)
+            const bullVal = calculateIntrinsicValue({
+                ...commonInputs,
+                growthRate: baseGrowthRate + 0.02,
+                costOfEquity: Math.max(0.01, baseCostOfEquity - 0.01)
+            });
+
+            // --- UI Updates ---
             const mos = ((intrinsicVal - price) / price) * 100;
             let verdict = "HOLD";
             let verdictColorClass = "text-gray-300";
@@ -1331,35 +1835,34 @@
                 panelBorderClass = "border-red-600";
                 mosBgClass = "bg-red-900/30 text-red-400 border border-red-800";
             } else {
-                verdict = "HOLD"; 
-                verdictColorClass = "text-gray-200"; 
-                panelBorderClass = "border-gray-500"; 
+                verdict = "HOLD"; 
+                verdictColorClass = "text-gray-200"; 
+                panelBorderClass = "border-gray-500"; 
                 mosBgClass = "bg-gray-800 text-gray-300 border border-gray-600";
             }
 
+            // Reverse DCF Logic (Implied Growth)
             let impliedG = 0;
             if (sector !== 'bank' && sector !== 'reit') {
                 let low = -0.50;
                 let high = 1.00;
-                for(let i=0; i<20; i++) { 
+                for(let i=0; i<20; i++) { 
                     let mid = (low + high) / 2;
-                    let testVal = 0;
-                    let testFCF = fcf;
-                    let testSumPV = 0;
-                    for(let j=1; j<=10; j++) {
-                        let g = mid - ((mid - 0.03) * (j/10));
-                        testFCF = testFCF * (1 + g);
-                        testSumPV += testFCF / Math.pow(1 + wacc, j);
-                    }
-                    let testTerm = testFCF * exitMultiple;
-                    let testPVTerm = testTerm / Math.pow(1 + wacc, 10);
-                    let testEqV = (testSumPV + testPVTerm + cash - debt) / shares;
-                    if (testEqV > price) high = mid;
+                    // Use helper logic manually here to reverse engineer, or approximate
+                    // Simplified reverse check using helper logic structure
+                    let testVal = calculateIntrinsicValue({
+                        ...commonInputs,
+                        growthRate: mid,
+                        costOfEquity: baseCostOfEquity
+                    });
+                    
+                    if (testVal > price) high = mid;
                     else low = mid;
                 }
                 impliedG = (low + high) / 2;
             }
 
+            // Display Results
             document.getElementById('placeholderState').classList.add('hidden');
             document.getElementById('resultsContainer').classList.remove('hidden');
 
@@ -1372,17 +1875,23 @@
             
             vEl.innerText = verdict;
             vEl.className = `text-2xl font-bold mb-1 ${verdictColorClass}`;
-            pEl.className = `pro-panel p-6 border-l-4 ${panelBorderClass} relative`;
+            pEl.className = `glass-panel p-6 border-l-4 ${panelBorderClass} relative`;
             mEl.innerText = `MOS: ${mos.toFixed(1)}%`;
             mEl.className = `text-[10px] font-mono px-2 py-1 rounded inline-block ${mosBgClass}`;
 
             document.getElementById('resPrice').innerText = `$${price.toFixed(2)}`;
             document.getElementById('resIntrinsic').innerText = `$${intrinsicVal.toFixed(2)}`;
-            document.getElementById('resWacc').innerText = `${(wacc*100).toFixed(1)}%`;
+            // Update UI Label to Cost of Equity
+            document.getElementById('resWacc').innerText = `${(baseCostOfEquity*100).toFixed(1)}%`;
             document.getElementById('resMktCap').innerText = `$${(price*shares).toFixed(1)}B`;
 
+            // Update Sensitivity Table
+            document.getElementById('valBase').innerText = `$${intrinsicVal.toFixed(2)}`;
+            document.getElementById('valBear').innerText = `$${bearVal.toFixed(2)}`;
+            document.getElementById('valBull').innerText = `$${bullVal.toFixed(2)}`;
+
             let impliedPct = (impliedG * 100);
-            if (sector === 'bank' || sector === 'reit') impliedPct = 0; 
+            if (sector === 'bank' || sector === 'reit') impliedPct = 0; 
             
             document.getElementById('impliedGrowth').innerText = `${impliedPct.toFixed(1)}%`;
             let markerPos = ((impliedPct) / 20) * 100;
@@ -1400,7 +1909,7 @@
             document.getElementById('valCash').innerText = `$${cash}B`;
             document.getElementById('valDebt').innerText = `$${debt}B`;
             
-            const totalCap = cash + debt + 0.1; 
+            const totalCap = cash + debt + 0.1; 
             document.getElementById('barCash').style.width = `${(cash/totalCap)*100}%`;
             document.getElementById('barDebt').style.width = `${(debt/totalCap)*100}%`;
             
@@ -1412,11 +1921,11 @@
                 document.getElementById('debtStatus').innerHTML = '<span class="text-yellow-400">Moderate</span>';
             }
 
-            document.getElementById('outRfr').innerText = `${rfrInput.toFixed(1)}%`;
+            document.getElementById('outRfr').innerText = `${rfrVal.toFixed(1)}%`;
             document.getElementById('outBeta').innerText = `${adjBeta.toFixed(2)} (Adj)`;
-            document.getElementById('outWaccCalc').innerText = `${(wacc*100).toFixed(1)}%`;
+            document.getElementById('outWaccCalc').innerText = `${(baseCostOfEquity*100).toFixed(1)}%`;
             document.getElementById('outFair').innerText = `$${intrinsicVal.toFixed(2)}`;
-            document.getElementById('outEV').innerText = `EV: ~$${(intrinsicVal*shares - cash + debt).toFixed(1)}B`;
+            document.getElementById('outEV').innerText = `EV: ~$${(intrinsicVal*shares - cash + debt).toFixed(1)}B`; // Still approx logic for display
             document.getElementById('outEqV').innerText = `EqV: ~$${(intrinsicVal*shares).toFixed(1)}B`;
 
             gsap.from("#resultsContainer > div", { y: 20, opacity: 0, stagger: 0.1 });
